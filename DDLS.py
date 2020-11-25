@@ -1,4 +1,3 @@
-# # USPS Dataset (16*16 images 7291 train images 2007 test images) 256*7291
 import h5py
 import scipy
 import pandas as pd
@@ -9,10 +8,8 @@ from sklearn.cluster import KMeans
 from sklearn.metrics.cluster import adjusted_rand_score
 from sklearn.metrics.cluster import normalized_mutual_info_score
 from sklearn.metrics import confusion_matrix
-from datasets import load_mnist, load_usps
 import matplotlib.pyplot as plt
 import metrics
-#from spgl1 import spgl1, spg_lasso
 from math import sqrt
 from scipy import linalg
 import time
@@ -91,11 +88,9 @@ def findclusterlabels(x, y, n_clusters):
         d1 = np.dot(x,(np.linalg.pinv(Q)))  #d1 shape num_input_features*k1
 
         d2 = np.dot((np.linalg.pinv(d1)),np.dot(x,np.linalg.pinv(P))) # d2 shape k1*k2
-        #d2[d2<0]=0
 
         W = np.linalg.pinv(np.dot(d1,d2))
         d3 = np.dot(W, np.dot(x, np.linalg.pinv(z))) #d3 shape k2*k3
-        #d3[d3<0]=0
 
         #Calculating error of d1,d2,d3
         d1_error = np.linalg.norm((d1 - d1_pre), 'fro')
@@ -121,7 +116,6 @@ def findclusterlabels(x, y, n_clusters):
             z_j = z[:,j]
             z_i_c = z.copy()
             z_i_c[:,j] = 0
-            #c_i,resid,grad,info = spg_lasso(z_i_c, z_j, tau, verbosity=0)
             c_i,resid,grad = ista(z_i_c,z_j)
             clist.append(c_i)
         C = np.concatenate(clist, axis=0).reshape(nsamples,nsamples).transpose()
@@ -137,18 +131,13 @@ def findclusterlabels(x, y, n_clusters):
         nmi_cur = metrics.nmi(y, z_pred)
         ari_cur = metrics.ari(y, z_pred)
 
-
         print('acc = %.4f, nmi = %.4f, ari = %.4f' % (metrics.acc(y, z_pred), metrics.nmi(y, z_pred), metrics.ari(y, z_pred)))
         print("Confusion Matrix ",confusion_matrix(y,z_pred))
-
-        cursilhoutti = silhouette_score(x.T, z_pred)
 
         if bestnmi < nmi_cur:
             bestnmi = nmi_cur
         if bestari < ari_cur:
             bestari = ari_cur
-        if cursilhoutti > bestsilhoutti:
-            bestsilhoutti = cursilhoutti
 
         print("Calculating cost")
         #Cost Calculation
@@ -192,7 +181,6 @@ def findclusterlabels(x, y, n_clusters):
     print("d3 list : ",d3_list)
     print("Z list : ",z_list)
     print('bestnmi = %.4f, bestari = %.4f', bestnmi, bestari)
-    print('best sillhouti = %.4f', bestsilhoutti)
 
     #Plotting cost function
     fig = plt.figure()
@@ -247,78 +235,31 @@ def findclusterlabels(x, y, n_clusters):
     return 
 
 if __name__ == "__main__":
-    # setting the hyper parameters
+    #Setting the hyper parameters
     import argparse
     parser = argparse.ArgumentParser(description='train')
-    parser.add_argument('dataset', default='usps', choices=['mnist', 'usps', 'mnist-test', 'eyaleb', 'arfaces', 'coil20', 'zygote'])
+    parser.add_argument('dataset', default='usps', choices=['eyaleb', 'coil20', 'arfaces'])
     parser.add_argument('--n_clusters', default=10, type=int)
-    #parser.add_argument('--batch_size', default=256, type=int)
-    #parser.add_argument('--maxiter', default=2e4, type=int)
-    #parser.add_argument('--gamma', default=0.1, type=float, help='coefficient of clustering loss')
-    #parser.add_argument('--update_interval', default=140, type=int)
-    #parser.add_argument('--tol', default=0.001, type=float))
     args = parser.parse_args()
     print(args)
 
     n_clusters = args.n_clusters
 
-    # load dataset
-    from datasets import load_mnist, load_usps, load_processed_eyaleb, load_arfaces, load_zygote, load_coil20
-    if args.dataset == 'mnist':
-        x, y = load_mnist()
-        x, y = x[0:8000], y[0:8000]
-    elif args.dataset == 'usps':
-        x, y = load_usps('data/usps')
-        #x, y = x[0:2000], y[0:2000]
-    elif args.dataset == 'mnist-test':
-        x, y = load_mnist()
-        x, y = x[63000:], y[63000:]
-    elif args.dataset == 'eyaleb':
+    #Loading dataset..
+    from datasets import load_mnist, load_usps, load_eyaleb, load_fashion_mnist, load_processed_eyaleb, load_cifar10, load_olivetti, load_coil20, load_arp10, load_yale, load_zygote, load_arfaces
+    if args.dataset == 'eyaleb':
         x, y = load_processed_eyaleb()
     elif args.dataset == 'coil20':
         x, y = load_coil20()
     elif args.dataset == 'arfaces':
         x, y = load_arfaces()
-    elif args.dataset == 'zygote':
-        x, y = load_zygote()
-
-    #x = np.reshape(x,(x.shape[0],x.shape[1]*x.shape[2]))
+        
     print("X shape ",x.shape)
-    print("Y shape ",y.shape) 
-    x=np.transpose(x)
-    nsamples = x.shape[1]
+    print("Y shape ",y.shape)
 
     import time
     start_time = time.time()
 
-    print("Calculating C by subspace clustering for X")
-    tau = 0.1   
-    clist = []
-    for j in range(nsamples):
-        x_j = x[:,j]
-        x_i_c = x.copy()
-        x_i_c[:,j] = 0
-        #c_i,resid,grad,info = spg_lasso(z_i_c, z_j, tau, verbosity=0)
-        c_i,resid,grad = ista(x_i_c,x_j)
-        clist.append(c_i)    
-        if(j%500==0):
-            print("Value of j ",j)   
-    C = np.concatenate(clist, axis=0).reshape(nsamples,nsamples).transpose()
-    idx = np.arange(nsamples)
-    C[idx,idx]=0
-    print("C shape ",C.shape)
-
-    #Computing ARI and NMI
-    C_aff = np.add(C,np.transpose(C))
-    clustering = SpectralClustering(assign_labels='discretize', n_clusters=args.n_clusters,random_state=0,affinity='precomputed').fit(C_aff)
-    x_pred = clustering.labels_
-    #print('acc = %.4f, nmi = %.4f, ari = %.4f' % (metrics.acc(y, x_pred), metrics.nmi(y, x_pred), metrics.ari(y, x_pred)))
-    print('nmi = %.4f, ari = %.4f' % (metrics.nmi(y, x_pred), metrics.ari(y, x_pred)))
-    print("Confusion Matrix ",confusion_matrix(y,x_pred))
-    print("sillhouti score for ssc ", silhouette_score(x.T, x_pred))
-
-    # n_clusters = args.n_clusters
-
-    # findclusterlabels(np.transpose(x), y, n_clusters)
+    findclusterlabels(x, y, n_clusters)
 
     print("--- %s seconds ---" % (time.time() - start_time))
