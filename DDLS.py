@@ -246,7 +246,7 @@ if __name__ == "__main__":
     n_clusters = args.n_clusters
 
     #Loading dataset..
-    from datasets import load_mnist, load_usps, load_eyaleb, load_fashion_mnist, load_processed_eyaleb, load_cifar10, load_olivetti, load_coil20, load_arp10, load_yale, load_zygote, load_arfaces
+    from datasets import load_processed_eyaleb, load_coil20, load_arfaces
     if args.dataset == 'eyaleb':
         x, y = load_processed_eyaleb()
     elif args.dataset == 'coil20':
